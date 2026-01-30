@@ -1,0 +1,30 @@
+[versions]
+kotlin = "2.2.0"
+kotlinx-serialization = "1.7.3"
+slf4j = "2.0.16"
+jetty = "11.0.18"
+jakarta-servlet = "5.0.0"
+junit = "5.10.1"
+kotlinx-coroutines = "1.7.3"
+archunit = "1.2.1"
+
+[libraries]
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
+jetty-server = { module = "org.eclipse.jetty:jetty-server", version.ref = "jetty" }
+jetty-servlet = { module = "org.eclipse.jetty:jetty-servlet", version.ref = "jetty" }
+jakarta-servlet-api = { module = "jakarta.servlet:jakarta.servlet-api", version.ref = "jakarta-servlet" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
+
+[bundles]
+core = ["kotlinx-serialization-json", "slf4j-api", "kotlin-reflect"]
+jetty = ["jetty-server", "jetty-servlet", "jakarta-servlet-api"]
+testing = ["junit-jupiter", "kotlinx-coroutines-test", "archunit-junit5"]
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

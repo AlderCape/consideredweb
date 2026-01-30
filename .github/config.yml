@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentation
+    url: https://consideredweb.com
+    about: Check the docs before filing a new issue.
+  - name: 💬 Discussions
+    url: https://github.com/ProjectVistaCoUk/back-end/discussions
+    about: Use discussions for questions and feedback.
