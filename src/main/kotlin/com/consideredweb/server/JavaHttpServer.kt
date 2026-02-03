@@ -72,8 +72,8 @@ private fun HttpExchange.sendResponse(response: HttpResponse) {
         responseHeaders.set("Content-Type", response.contentType)
     }
 
-    // Send response
-    val bodyBytes = response.body.toByteArray(Charsets.UTF_8)
+    // Send response - use binary data if present, otherwise convert text to bytes
+    val bodyBytes = response.bodyBytes ?: response.body.toByteArray(Charsets.UTF_8)
     sendResponseHeaders(response.status, bodyBytes.size.toLong())
 
     if (bodyBytes.isNotEmpty()) {

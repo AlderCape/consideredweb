@@ -20,14 +20,24 @@ class RouteMatcher(private val routes: List<Route>) {
         val routeSegments = routePath.split("/")
         val requestSegments = requestPath.split("/")
 
-        if (routeSegments.size != requestSegments.size) {
-            return null
-        }
-
         val pathParams = mutableMapOf<String, String>()
 
         for (i in routeSegments.indices) {
             val routeSegment = routeSegments[i]
+
+            // Handle catch-all wildcard {*paramName}
+            if (routeSegment.startsWith("{*") && routeSegment.endsWith("}")) {
+                val paramName = routeSegment.substring(2, routeSegment.length - 1)
+                val remaining = requestSegments.drop(i).joinToString("/")
+                pathParams[paramName] = remaining
+                return pathParams
+            }
+
+            // Not enough segments in request
+            if (i >= requestSegments.size) {
+                return null
+            }
+
             val requestSegment = requestSegments[i]
 
             when {
@@ -45,6 +55,11 @@ class RouteMatcher(private val routes: List<Route>) {
                     return null
                 }
             }
+        }
+
+        // Check that all request segments were consumed
+        if (routeSegments.size != requestSegments.size) {
+            return null
         }
 
         return pathParams

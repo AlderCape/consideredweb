@@ -95,9 +95,14 @@ private fun HttpServletResponse.sendFrameworkResponse(response: HttpResponse) {
         contentType = response.contentType
     }
 
-    // Write body
-    writer.write(response.body)
-    writer.flush()
+    // Write body - use binary data if present, otherwise text
+    if (response.bodyBytes != null) {
+        outputStream.write(response.bodyBytes)
+        outputStream.flush()
+    } else {
+        writer.write(response.body)
+        writer.flush()
+    }
 }
 
 private fun parseQueryParams(query: String?): Map<String, String> {
