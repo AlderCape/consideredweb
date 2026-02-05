@@ -1,13 +1,18 @@
 package com.consideredweb.utils
 
+import org.slf4j.LoggerFactory
+
+@PublishedApi
+internal val traceLogger = LoggerFactory.getLogger("com.consideredweb.trace")
+
 inline fun <T> Any.traced(block: () -> T): T {
-    val (className,methodName) = getCurrent()
-    println("TRACE Entering $className.$methodName")
+    val (className, methodName) = getCurrent()
+    traceLogger.trace("Entering {}.{}", className, methodName)
 
     try {
         return block()
     } finally {
-        println("TRACE Exiting $className.$methodName")
+        traceLogger.trace("Exiting {}.{}", className, methodName)
     }
 }
 

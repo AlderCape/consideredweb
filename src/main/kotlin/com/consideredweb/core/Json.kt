@@ -3,6 +3,10 @@ package com.consideredweb.core
 import com.consideredweb.utils.traced
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.slf4j.LoggerFactory
+
+@PublishedApi
+internal val jsonLogger = LoggerFactory.getLogger(JsonSupport::class.java)
 
 /**
  * JSON serialization utilities for ConsideredWeb.
@@ -42,7 +46,7 @@ object JsonSupport {
      * Deserialize JSON string to object
      */
     inline fun <reified T> fromJson(jsonString: String): T {
-        print("Deserialising json: $jsonString")
+        jsonLogger.debug("Deserializing JSON: {}", jsonString.take(200))
         return json.decodeFromString(jsonString)
     }
 }
@@ -66,15 +70,16 @@ inline fun <reified T> HttpResponse.Companion.createdJson(value: T): HttpRespons
  * Extension functions for Request to support JSON deserialization
  */
 inline fun <reified T> Request.bodyAsJson(): T = traced {
-    println("Converting body to json: ${this.body}")
+    jsonLogger.debug("Converting body to JSON, length: {}", this.body.length)
     JsonSupport.fromJson(this.body)
 }
 
 inline fun <reified T> Request.bodyAsJsonOrNull(): T? {
     return try {
-        println("Body s json or null: $body")
+        jsonLogger.debug("Converting body to JSON or null, length: {}", body.length)
         if (body.isBlank()) null else JsonSupport.fromJson<T>(body)
     } catch (e: Exception) {
+        jsonLogger.debug("Failed to parse JSON: {}", e.message)
         null
     }
 }

@@ -1,5 +1,8 @@
 package com.consideredweb.core
 
+import org.slf4j.LoggerFactory
+
+private val logger = LoggerFactory.getLogger("com.consideredweb.core.RouterBuilder")
 
 /**
  * Enhanced router builder with filter support.
@@ -168,14 +171,13 @@ class EnhancedFrameworkHandler(routes: List<Route>) : HttpHandler {
             } else {
                 request
             }
-            println("calling $frameworkHandler to handle the request $enhancedRequest")
+            logger.debug("Handling request: {} {}", enhancedRequest.method, enhancedRequest.path)
 
             frameworkHandler.handle(enhancedRequest)
         } catch (e: PathParamException) {
             HttpResponse.badRequest("Invalid parameter: ${e.message}")
         } catch (e: Exception) {
-            println("Error handling request: ${e.message}")
-            e.printStackTrace()
+            logger.error("Error handling request: {}", e.message, e)
             HttpResponse.internalServerError("Internal server error")
         }
     }

@@ -118,6 +118,71 @@ get("/search") { request ->
 }
 ```
 
+## Observability
+
+### Logging
+
+The framework uses SLF4J for logging. Add your preferred implementation:
+
+```kotlin
+// Logback (recommended)
+implementation("ch.qos.logback:logback-classic:1.4.14")
+
+// Or Log4j2
+implementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.22.0")
+```
+
+Configure log levels in your logging config:
+- `com.consideredweb` - Framework logs (INFO for production, DEBUG for development)
+- `com.consideredweb.trace` - Method tracing (TRACE level)
+
+### Correlation IDs
+
+Request tracing is enabled by default via the correlation ID filter:
+
+```kotlin
+val routes = buildRouter {
+    filter(Filters.correlationId())  // Enabled by default
+
+    get("/api/data") { request ->
+        // Access correlation ID in handlers
+        val correlationId = request.correlationId
+        HttpResponse.ok("data")
+    }
+}
+```
+
+The filter:
+- Propagates incoming `X-Correlation-ID`, `X-Request-ID`, or `X-Trace-ID` headers
+- Generates a UUID if no correlation ID is provided
+- Adds `X-Correlation-ID` to all responses
+
+**Customization:**
+
+```kotlin
+// Custom configuration
+filter(Filters.correlationId(CorrelationIdConfig(
+    requestHeaders = listOf("X-My-Trace-ID"),  // Headers to check
+    responseHeader = "X-My-Trace-ID",          // Response header name
+    generator = { "req-${System.nanoTime()}" } // Custom ID generator
+)))
+
+// Disable correlation IDs (not recommended)
+// Simply don't add the filter
+```
+
+### Request Logging
+
+```kotlin
+val routes = buildRouter {
+    filter(Filters.correlationId())
+    filter(Filters.logging())         // Logs: method, path, status, duration
+    filter(Filters.requestLogging())  // DEBUG: includes headers and body
+
+    // ... routes
+}
+```
+
 ## Installation
 
 Add to your `build.gradle.kts`:
@@ -134,8 +199,31 @@ repositories {
 }
 
 dependencies {
-    implementation("com.consideredweb:consideredweb:0.1.0")
+    // Core framework (uses built-in Java HTTP server)
+    implementation("com.consideredweb:consideredweb:0.3.0")
+
+    // Optional: Add Jetty for JettyHttpServer
+    implementation("org.eclipse.jetty:jetty-server:11.0.18")
+    implementation("org.eclipse.jetty:jetty-servlet:11.0.18")
+    implementation("jakarta.servlet:jakarta.servlet-api:5.0.0")
 }
+```
+
+### Minimal Setup (No Jetty)
+
+For the smallest dependency footprint, use `JavaHttpServer` which only requires the JDK:
+
+```kotlin
+dependencies {
+    implementation("com.consideredweb:consideredweb:0.3.0")
+}
+```
+
+```kotlin
+import com.consideredweb.server.JavaHttpServer
+
+val routes = buildRouter { /* ... */ }
+JavaHttpServer().start(8080, FrameworkHandler(routes))
 ```
 
 ## License & Usage

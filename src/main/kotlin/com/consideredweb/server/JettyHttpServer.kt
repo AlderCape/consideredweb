@@ -10,7 +10,10 @@ import jakarta.servlet.http.HttpServletResponse
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.servlet.ServletContextHandler
 import org.eclipse.jetty.servlet.ServletHolder
+import org.slf4j.LoggerFactory
 import java.util.concurrent.Executors
+
+private val logger = LoggerFactory.getLogger(JettyHttpServer::class.java)
 
 class JettyHttpServer : HttpServer {
     private var server: Server? = null
@@ -25,14 +28,14 @@ class JettyHttpServer : HttpServer {
             this.handler = context
             start()
         }
-        println("Jetty server started on http://localhost:$port")
+        logger.info("Jetty server started on http://localhost:{}", port)
     }
 
     override fun stop() {
         server?.stop()
         server = null
         virtualThreadExecutor.shutdown()
-        println("Jetty server stopped")
+        logger.info("Jetty server stopped")
     }
 
     private inner class FrameworkServlet(private val frameworkHandler: HttpHandler) : HttpServlet() {
@@ -40,13 +43,11 @@ class JettyHttpServer : HttpServer {
             // Process synchronously to ensure response is completed before servlet returns
             try {
                 val request = req.toFrameworkRequest()
-                println(request)
+                logger.debug("Incoming request: {} {}", request.method, request.path)
                 val response = frameworkHandler.handle(request)
                 resp.sendFrameworkResponse(response)
             } catch (e: Exception) {
-                // Log error and send 500 response
-                println("Error handling request: ${e.message}")
-                e.printStackTrace()
+                logger.error("Error handling request: {}", e.message, e)
                 try {
                     resp.status = 500
                     resp.writer.write("Internal server error: ${e.message}")

@@ -1,13 +1,17 @@
 package com.consideredweb.core
 
 import com.consideredweb.core.ContentTypeSupport.bodyAs
+import org.slf4j.LoggerFactory
 import kotlin.reflect.typeOf
+
+@PublishedApi
+internal val typedRoutesLogger = LoggerFactory.getLogger("com.consideredweb.core.TypedRoutes")
 
 /**
  * Handle exceptions and return appropriate HTTP responses
  */
 fun handleException(e: Exception): HttpResponse {
-    e.printStackTrace()
+    typedRoutesLogger.error("Exception in typed route handler: {}", e.message, e)
     return when (e::class.simpleName) {
         "UnauthorizedException" -> {
             val errorJson = """{"message": "${e.message}", "code": "UNAUTHORIZED"}"""
@@ -62,9 +66,9 @@ inline fun <reified TRequest, reified TResponse> RouterBuilder.post(
 
     post(path) { request ->
         try {
-            println("RouterBuilder.post: $request")
+            typedRoutesLogger.debug("Typed POST handler: {} {}", request.method, request.path)
             val body = request.bodyAs<TRequest>()
-            println("request body: $body")
+            typedRoutesLogger.debug("Request body parsed successfully")
             val result = handler(body)
             HttpResponse.createdJson(result)
         } catch (e: Exception) {

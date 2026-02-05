@@ -1,5 +1,10 @@
 package com.consideredweb.core
 
+import org.slf4j.LoggerFactory
+import java.util.UUID
+
+private val logger = LoggerFactory.getLogger("com.consideredweb.core.Filters")
+
 /**
  * Filter interface for middleware functionality.
  *
@@ -70,56 +75,55 @@ object Filters {
     }
 
     /**
-     * Logging filter
+     * Logging filter - logs request method/path and response status with duration
      */
     fun logging(): Filter = filter { handler: HttpHandler ->
         HttpHandler { request: Request ->
-            println("${request.method} ${request.uri}")
+            logger.debug("{} {}", request.method, request.uri)
             val start = System.currentTimeMillis()
             val response = handler.handle(request)
             val duration = System.currentTimeMillis() - start
-            println("${request.method} ${request.uri} -> ${response.status} (${duration}ms)")
+            logger.info("{} {} -> {} ({}ms)", request.method, request.uri, response.status, duration)
             response
         }
     }
 
     /**
-     * Error handling filter
+     * Error handling filter - catches exceptions and returns JSON error responses
      */
     fun errorHandling(): Filter = filter { handler: HttpHandler ->
         HttpHandler { request: Request ->
             try {
                 val response = handler.handle(request)
-                println("🔍 RESPONSE DEBUG: ${request.method} ${request.uri} -> Status: ${response.status}, Content-Type: ${response.headers["Content-Type"]}, Body: ${response.body?.take(200)}")
+                logger.debug("{} {} -> {} Content-Type: {}", request.method, request.uri, response.status, response.headers["Content-Type"])
                 response
             } catch (e: Exception) {
-                println("🚨 ERROR handling request: ${request.method} ${request.uri} - ${e.message}")
-                e.printStackTrace()
+                logger.error("Error handling request: {} {} - {}", request.method, request.uri, e.message, e)
 
                 // Return JSON error response
                 val errorJson = """{"message": "Internal server error: ${e.message}", "code": "INTERNAL_ERROR"}"""
                 val errorResponse = HttpResponse.internalServerError(errorJson)
                     .withHeader("Content-Type", "application/json")
-                println("🔍 ERROR RESPONSE: Status: ${errorResponse.status}, Content-Type: ${errorResponse.headers["Content-Type"]}, Body: ${errorResponse.body}")
+                logger.debug("Error response: {} {}", errorResponse.status, errorResponse.body)
                 errorResponse
             }
         }
     }
 
     /**
-     * Request/Response logging filter
+     * Detailed request/response logging filter - logs headers and body (DEBUG level)
      */
     fun requestLogging(): Filter = filter { handler: HttpHandler ->
         HttpHandler { request: Request ->
-            println("📥 REQUEST: ${request.method} ${request.uri}")
-            println("📥 REQUEST Headers: ${request.headers}")
-            println("📥 REQUEST Body: ${request.body?.take(500)}")
+            logger.debug("REQUEST: {} {}", request.method, request.uri)
+            logger.debug("REQUEST Headers: {}", request.headers)
+            logger.debug("REQUEST Body: {}", request.body?.take(500))
 
             val response = handler.handle(request)
 
-            println("📤 RESPONSE: ${request.method} ${request.uri} -> Status: ${response.status}")
-            println("📤 RESPONSE Headers: ${response.headers}")
-            println("📤 RESPONSE Body: ${response.body?.take(500)}")
+            logger.debug("RESPONSE: {} {} -> Status: {}", request.method, request.uri, response.status)
+            logger.debug("RESPONSE Headers: {}", response.headers)
+            logger.debug("RESPONSE Body: {}", response.body?.take(500))
 
             response
         }
@@ -133,7 +137,50 @@ object Filters {
             else -> "*"
         }
     }
+
+    /**
+     * Correlation ID filter - adds request tracing support.
+     *
+     * Propagates incoming correlation ID from request headers or generates a new one.
+     * Adds the correlation ID to the response headers and makes it available on the Request object.
+     *
+     * @param config Configuration for correlation ID behavior
+     */
+    fun correlationId(config: CorrelationIdConfig = CorrelationIdConfig()): Filter = filter { handler: HttpHandler ->
+        HttpHandler { request: Request ->
+            // Look for existing correlation ID in configured headers
+            val existingId = config.requestHeaders
+                .firstNotNullOfOrNull { headerName -> request.header(headerName) }
+
+            // Use existing or generate new
+            val correlationId = existingId ?: config.generator()
+
+            logger.debug("Correlation ID: {} (propagated: {})", correlationId, existingId != null)
+
+            // Add correlation ID to request
+            val requestWithCorrelationId = request.copy(correlationId = correlationId)
+
+            // Handle request
+            val response = handler.handle(requestWithCorrelationId)
+
+            // Add correlation ID to response header
+            response.withHeader(config.responseHeader, correlationId)
+        }
+    }
 }
+
+/**
+ * Configuration for correlation ID filter.
+ *
+ * @param requestHeaders Headers to check for incoming correlation ID (checked in order)
+ * @param responseHeader Header name for the correlation ID in the response
+ * @param generator Function to generate a new correlation ID when none is provided
+ */
+data class CorrelationIdConfig(
+    val requestHeaders: List<String> = listOf("X-Correlation-ID", "X-Request-ID", "X-Trace-ID"),
+    val responseHeader: String = "X-Correlation-ID",
+    val generator: () -> String = { UUID.randomUUID().toString() }
+)
 
 /**
  * Extension function to add headers to HttpResponse

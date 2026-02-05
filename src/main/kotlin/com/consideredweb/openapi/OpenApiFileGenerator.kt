@@ -1,8 +1,11 @@
 package com.consideredweb.openapi
 
 import com.consideredweb.core.Route
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Paths
+
+private val logger = LoggerFactory.getLogger(OpenApiFileGenerator::class.java)
 
 /**
  * Configuration for OpenAPI file generation
@@ -25,7 +28,7 @@ object OpenApiFileGenerator {
      */
     fun generateFile(routes: List<Route>, config: OpenApiConfig) {
         if (!config.enabled) {
-            println("OpenAPI generation disabled")
+            logger.debug("OpenAPI generation disabled")
             return
         }
 
@@ -45,10 +48,9 @@ object OpenApiFileGenerator {
             // Write the OpenAPI spec
             file.writeText(openApiJson)
 
-            println("OpenAPI spec generated: ${file.absolutePath}")
+            logger.info("OpenAPI spec generated: {}", file.absolutePath)
         } catch (e: Exception) {
-            println("Failed to generate OpenAPI spec: ${e.message}")
-            e.printStackTrace()
+            logger.warn("Failed to generate OpenAPI spec: {}", e.message, e)
         }
     }
 

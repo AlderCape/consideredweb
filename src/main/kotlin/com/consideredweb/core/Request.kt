@@ -8,7 +8,8 @@ data class Request(
     val pathParams: Map<String, String>,
     val headers: Map<String, String>,
     val body: String,
-    val remoteAddress: String
+    val remoteAddress: String,
+    val correlationId: String? = null
 ) {
     fun pathParam(name: String): String? = pathParams[name]
     fun queryParam(name: String): String? = queryParams[name]

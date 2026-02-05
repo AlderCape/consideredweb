@@ -1,6 +1,10 @@
 package com.consideredweb.core
 
 import com.consideredweb.utils.traced
+import org.slf4j.LoggerFactory
+
+@PublishedApi
+internal val contentTypeLogger = LoggerFactory.getLogger(ContentTypeSupport::class.java)
 
 /**
  * Content-type aware deserialization support.
@@ -12,7 +16,7 @@ object ContentTypeSupport {
      * Deserialize request body based on Content-Type header
      */
     inline fun <reified T> Request.bodyAs(): T = traced {
-        println("converting body from $contentType format")
+        contentTypeLogger.debug("Converting body from {} format", contentType)
         when (contentType) {
             "application/json" -> bodyAsJson<T>()
             "application/x-www-form-urlencoded" -> bodyAsForm<T>()

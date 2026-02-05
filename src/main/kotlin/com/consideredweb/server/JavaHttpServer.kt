@@ -5,8 +5,11 @@ import com.consideredweb.core.HttpResponse
 import com.consideredweb.core.HttpServer
 import com.consideredweb.core.Request
 import com.sun.net.httpserver.HttpExchange
+import org.slf4j.LoggerFactory
 import java.net.InetSocketAddress
 import com.sun.net.httpserver.HttpServer as JdkHttpServer
+
+private val logger = LoggerFactory.getLogger(JavaHttpServer::class.java)
 
 class JavaHttpServer : HttpServer {
     private var server: JdkHttpServer? = null
@@ -20,9 +23,7 @@ class JavaHttpServer : HttpServer {
                         val response = handler.handle(request)
                         exchange.sendResponse(response)
                     } catch (e: Exception) {
-                        // Log error and send 500 response
-                        println("Error handling request: ${e.message}")
-                        e.printStackTrace()
+                        logger.error("Error handling request: {}", e.message, e)
                         try {
                             exchange.sendResponseHeaders(500, 0)
                             exchange.responseBody.close()
@@ -34,13 +35,13 @@ class JavaHttpServer : HttpServer {
             }
             start()
         }
-        println("Server started on http://localhost:$port")
+        logger.info("Server started on http://localhost:{}", port)
     }
 
     override fun stop() {
         server?.stop(0)
         server = null
-        println("Server stopped")
+        logger.info("Server stopped")
     }
 }
 

@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.consideredweb"
-version = "0.2.0"
+version = "0.3.0"
 
 repositories {
     mavenCentral()
@@ -14,7 +14,10 @@ repositories {
 
 dependencies {
     api(libs.bundles.core)
-    api(libs.bundles.jetty)
+
+    // Jetty is optional - users who want JettyHttpServer must add these dependencies
+    compileOnly(libs.bundles.jetty)
+    testImplementation(libs.bundles.jetty)
 
     testImplementation(libs.bundles.testing)
     testImplementation(kotlin("test"))
