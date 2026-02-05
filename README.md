@@ -176,12 +176,20 @@ filter(Filters.correlationId(CorrelationIdConfig(
 ```kotlin
 val routes = buildRouter {
     filter(Filters.correlationId())
-    filter(Filters.logging())         // Logs: method, path, status, duration
-    filter(Filters.requestLogging())  // DEBUG: includes headers and body
+    filter(Filters.logging())         // INFO: method, path, status, duration
+
+    // Detailed logging with configurable options
+    filter(Filters.requestLogging(
+        logHeaders = true,   // Log headers at DEBUG level
+        logBody = false,     // Log bodies at TRACE level (disabled by default)
+        maxBodyLength = 200  // Truncate body output
+    ))
 
     // ... routes
 }
 ```
+
+The framework does not bundle any logging configuration files - you control logging via your own SLF4J implementation config.
 
 ## Installation
 

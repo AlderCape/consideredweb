@@ -37,6 +37,15 @@ tasks.test {
     useJUnitPlatform()
 }
 
+// Exclude logging configuration files from JAR to let consumers configure their own logging
+tasks.withType<Jar> {
+    exclude("simplelogger.properties")
+    exclude("logback.xml")
+    exclude("logback-test.xml")
+    exclude("log4j.properties")
+    exclude("log4j2.xml")
+}
+
 publishing {
     publications {
         create<MavenPublication>("gpr") {

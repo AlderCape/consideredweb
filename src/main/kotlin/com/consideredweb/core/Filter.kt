@@ -94,36 +94,51 @@ object Filters {
     fun errorHandling(): Filter = filter { handler: HttpHandler ->
         HttpHandler { request: Request ->
             try {
-                val response = handler.handle(request)
-                logger.debug("{} {} -> {} Content-Type: {}", request.method, request.uri, response.status, response.headers["Content-Type"])
-                response
+                handler.handle(request)
             } catch (e: Exception) {
                 logger.error("Error handling request: {} {} - {}", request.method, request.uri, e.message, e)
 
                 // Return JSON error response
                 val errorJson = """{"message": "Internal server error: ${e.message}", "code": "INTERNAL_ERROR"}"""
-                val errorResponse = HttpResponse.internalServerError(errorJson)
+                HttpResponse.internalServerError(errorJson)
                     .withHeader("Content-Type", "application/json")
-                logger.debug("Error response: {} {}", errorResponse.status, errorResponse.body)
-                errorResponse
             }
         }
     }
 
     /**
-     * Detailed request/response logging filter - logs headers and body (DEBUG level)
+     * Detailed request/response logging filter.
+     *
+     * - DEBUG: method, path, status, headers
+     * - TRACE: request/response bodies (truncated to 200 chars)
+     *
+     * @param logHeaders Whether to log headers (default: true)
+     * @param logBody Whether to log bodies at TRACE level (default: false)
+     * @param maxBodyLength Maximum body length to log (default: 200)
      */
-    fun requestLogging(): Filter = filter { handler: HttpHandler ->
+    fun requestLogging(
+        logHeaders: Boolean = true,
+        logBody: Boolean = false,
+        maxBodyLength: Int = 200
+    ): Filter = filter { handler: HttpHandler ->
         HttpHandler { request: Request ->
             logger.debug("REQUEST: {} {}", request.method, request.uri)
-            logger.debug("REQUEST Headers: {}", request.headers)
-            logger.debug("REQUEST Body: {}", request.body?.take(500))
+            if (logHeaders) {
+                logger.debug("REQUEST Headers: {}", request.headers)
+            }
+            if (logBody && logger.isTraceEnabled) {
+                logger.trace("REQUEST Body: {}", request.body?.take(maxBodyLength))
+            }
 
             val response = handler.handle(request)
 
             logger.debug("RESPONSE: {} {} -> Status: {}", request.method, request.uri, response.status)
-            logger.debug("RESPONSE Headers: {}", response.headers)
-            logger.debug("RESPONSE Body: {}", response.body?.take(500))
+            if (logHeaders) {
+                logger.debug("RESPONSE Headers: {}", response.headers)
+            }
+            if (logBody && logger.isTraceEnabled) {
+                logger.trace("RESPONSE Body: {}", response.body?.take(maxBodyLength))
+            }
 
             response
         }

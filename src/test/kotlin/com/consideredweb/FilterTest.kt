@@ -3,6 +3,7 @@ package com.consideredweb
 import com.consideredweb.core.*
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class FilterTest {
@@ -188,5 +189,163 @@ class FilterTest {
 
         val authedResponse = handler.handle(authedRequest)
         assertEquals(200, authedResponse.status)
+    }
+
+    @Test
+    fun `binary response should be preserved through filter chain`() {
+        val binaryData = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A) // PNG header
+
+        val routes = buildRouter {
+            filter(Filters.correlationId())
+            filter(Filters.cors())
+
+            get("/image") {
+                HttpResponse.okBinary(binaryData, "image/png")
+            }
+        }
+
+        val handler = EnhancedFrameworkHandler(routes)
+
+        val request = Request(
+            method = "GET",
+            uri = "/image",
+            path = "/image",
+            queryParams = emptyMap(),
+            pathParams = emptyMap(),
+            headers = emptyMap(),
+            body = "",
+            remoteAddress = "127.0.0.1"
+        )
+
+        val response = handler.handle(request)
+        assertEquals(200, response.status)
+        assertEquals("image/png", response.contentType)
+        assertNotNull(response.bodyBytes, "bodyBytes should not be null for binary response")
+        assertTrue(response.bodyBytes!!.contentEquals(binaryData), "Binary data should be preserved")
+        assertTrue(response.isBinary, "Response should be marked as binary")
+    }
+
+    @Test
+    fun `binary response should be preserved when adding headers`() {
+        val binaryData = byteArrayOf(1, 2, 3, 4, 5)
+
+        val response = HttpResponse.okBinary(binaryData, "application/octet-stream")
+            .withHeader("X-Custom", "value")
+            .withHeader("X-Another", "header")
+
+        assertNotNull(response.bodyBytes, "bodyBytes should be preserved after withHeader")
+        assertTrue(response.bodyBytes!!.contentEquals(binaryData), "Binary data should match")
+        assertEquals("value", response.headers["X-Custom"])
+        assertEquals("header", response.headers["X-Another"])
+    }
+
+    @Test
+    fun `correlation ID filter should generate ID when not provided`() {
+        val routes = buildRouter {
+            filter(Filters.correlationId())
+
+            get("/test") { request ->
+                // Verify correlation ID is available in handler
+                assertNotNull(request.correlationId)
+                HttpResponse.ok("OK")
+            }
+        }
+
+        val handler = EnhancedFrameworkHandler(routes)
+
+        val request = Request(
+            method = "GET",
+            uri = "/test",
+            path = "/test",
+            queryParams = emptyMap(),
+            pathParams = emptyMap(),
+            headers = emptyMap(),
+            body = "",
+            remoteAddress = "127.0.0.1"
+        )
+
+        val response = handler.handle(request)
+        assertEquals(200, response.status)
+        assertNotNull(response.headers["X-Correlation-ID"], "Response should have correlation ID header")
+    }
+
+    @Test
+    fun `correlation ID filter should propagate existing ID`() {
+        val existingCorrelationId = "existing-correlation-id-123"
+
+        val routes = buildRouter {
+            filter(Filters.correlationId())
+
+            get("/test") { request ->
+                assertEquals(existingCorrelationId, request.correlationId)
+                HttpResponse.ok("OK")
+            }
+        }
+
+        val handler = EnhancedFrameworkHandler(routes)
+
+        val request = Request(
+            method = "GET",
+            uri = "/test",
+            path = "/test",
+            queryParams = emptyMap(),
+            pathParams = emptyMap(),
+            headers = mapOf("X-Correlation-ID" to existingCorrelationId),
+            body = "",
+            remoteAddress = "127.0.0.1"
+        )
+
+        val response = handler.handle(request)
+        assertEquals(200, response.status)
+        assertEquals(existingCorrelationId, response.headers["X-Correlation-ID"])
+    }
+
+    @Test
+    fun `correlation ID filter should support custom configuration`() {
+        val customId = "custom-trace-123"
+
+        val routes = buildRouter {
+            filter(Filters.correlationId(CorrelationIdConfig(
+                requestHeaders = listOf("X-My-Trace"),
+                responseHeader = "X-My-Trace",
+                generator = { "generated-id" }
+            )))
+
+            get("/test") { request ->
+                HttpResponse.ok("OK")
+            }
+        }
+
+        val handler = EnhancedFrameworkHandler(routes)
+
+        // Test with custom header
+        val requestWithHeader = Request(
+            method = "GET",
+            uri = "/test",
+            path = "/test",
+            queryParams = emptyMap(),
+            pathParams = emptyMap(),
+            headers = mapOf("X-My-Trace" to customId),
+            body = "",
+            remoteAddress = "127.0.0.1"
+        )
+
+        val responseWithHeader = handler.handle(requestWithHeader)
+        assertEquals(customId, responseWithHeader.headers["X-My-Trace"])
+
+        // Test with generator
+        val requestWithoutHeader = Request(
+            method = "GET",
+            uri = "/test",
+            path = "/test",
+            queryParams = emptyMap(),
+            pathParams = emptyMap(),
+            headers = emptyMap(),
+            body = "",
+            remoteAddress = "127.0.0.1"
+        )
+
+        val responseWithGenerator = handler.handle(requestWithoutHeader)
+        assertEquals("generated-id", responseWithGenerator.headers["X-My-Trace"])
     }
 }
