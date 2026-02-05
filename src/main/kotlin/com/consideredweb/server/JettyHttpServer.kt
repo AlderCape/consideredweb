@@ -40,21 +40,23 @@ class JettyHttpServer : HttpServer {
 
     private inner class FrameworkServlet(private val frameworkHandler: HttpHandler) : HttpServlet() {
         override fun service(req: HttpServletRequest, resp: HttpServletResponse) {
-            // Process synchronously to ensure response is completed before servlet returns
-            try {
-                val request = req.toFrameworkRequest()
-                logger.debug("Incoming request: {} {}", request.method, request.path)
-                val response = frameworkHandler.handle(request)
-                resp.sendFrameworkResponse(response)
-            } catch (e: Exception) {
-                logger.error("Error handling request: {}", e.message, e)
+            // Run on virtual thread but wait for completion (servlet requires response before returning)
+            virtualThreadExecutor.submit {
                 try {
-                    resp.status = 500
-                    resp.writer.write("Internal server error: ${e.message}")
-                } catch (ignored: Exception) {
-                    // Ignore errors when sending error response
+                    val request = req.toFrameworkRequest()
+                    logger.debug("Incoming request: {} {}", request.method, request.path)
+                    val response = frameworkHandler.handle(request)
+                    resp.sendFrameworkResponse(response)
+                } catch (e: Exception) {
+                    logger.error("Error handling request: {}", e.message, e)
+                    try {
+                        resp.status = 500
+                        resp.writer.write("Internal server error: ${e.message}")
+                    } catch (ignored: Exception) {
+                        // Ignore errors when sending error response
+                    }
                 }
-            }
+            }.get() // Wait for virtual thread to complete
         }
     }
 }
